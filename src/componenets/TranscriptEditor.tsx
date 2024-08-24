@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface TranscriptLine {
+  id: string;
   speaker: {
     name: string;
     isAgent: boolean;
   };
   text: string;
+  comments: string[];
 }
 
 interface TranscriptEditorProps {
@@ -18,6 +20,9 @@ interface TranscriptEditorProps {
 }
 
 const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, transcript }) => {
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [newComment, setNewComment] = useState('');
+
   if (!isOpen || !transcript) return null;
 
   const AgentIcon = () => (
@@ -32,6 +37,13 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, tr
     </svg>
   );
 
+  const handleCommentSubmit = (lineId: string) => {
+    // Add logic to save the comment
+    console.log('New comment for line', lineId, ':', newComment);
+    setNewComment('');
+    setActiveCommentId(null);
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-[#191b22] w-11/12 h-5/6 rounded-lg shadow-lg overflow-hidden flex flex-col">
@@ -44,18 +56,60 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, tr
           </button>
         </div>
         <div className="flex-grow overflow-y-auto p-4">
-          {transcript.lines.map((line, index) => (
-            <div key={index} className="flex items-start mb-4">
-              {line.speaker.isAgent ? <AgentIcon /> : <CustomerIcon />}
-              <div className="ml-3">
-                <span className="font-semibold text-white">{line.speaker.name}</span>
-                <p className="text-gray-300 mt-1">{line.text}</p>
+          {transcript.lines.map((line) => (
+            <div key={line.id} className="mb-6 bg-[#222530] p-4 rounded-lg">
+              <div className="flex items-start mb-2">
+                {line.speaker.isAgent ? <AgentIcon /> : <CustomerIcon />}
+                <div className="ml-3 flex-grow">
+                  <span className="font-semibold text-white">{line.speaker.name}</span>
+                  <p className="text-gray-300 mt-1">{line.text}</p>
+                </div>
               </div>
+              <div className="mt-2 ml-11">
+                <button 
+                  className="text-blue-400 hover:text-blue-300 transition-colors duration-200 text-sm"
+                  onClick={() => setActiveCommentId(line.id)}
+                >
+                  Reply
+                </button>
+              </div>
+              {line.comments.map((comment, index) => (
+                <div key={index} className="ml-11 mt-2 bg-[#2a2e3b] p-3 rounded-lg">
+                  <p className="text-gray-300">{comment}</p>
+                </div>
+              ))}
+              {activeCommentId === line.id && (
+                <div className="ml-11 mt-4">
+                  <div className="bg-[#2a2e3b] p-4 rounded-lg shadow-inner">
+                    <textarea
+                      className="w-full p-2 rounded bg-[#343845] text-white border border-[#4a4f5e] focus:outline-none focus:border-[#596066] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                      rows={3}
+                      placeholder="Write a comment..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                    ></textarea>
+                    <div className="flex justify-end mt-3 space-x-2">
+                      <button 
+                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors duration-200 text-sm"
+                        onClick={() => {
+                          setActiveCommentId(null);
+                          setNewComment('');
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors duration-200 text-sm"
+                        onClick={() => handleCommentSubmit(line.id)}
+                      >
+                        Comment
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
-        </div>
-        <div className="bg-[#03050c] p-4 flex justify-end">
-          <button className="btn-primary">Save Changes</button>
         </div>
       </div>
     </div>

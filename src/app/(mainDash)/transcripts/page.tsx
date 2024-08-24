@@ -59,28 +59,40 @@ export default function Home() {
                     title: "Customer Support Call #1234",
                     lines: [
                       {
+                        id: "line1",
                         speaker: { name: "Agent", isAgent: true },
-                        text: "Thank you for calling our support line. How may I assist you today?"
+                        text: "Thank you for calling our support line. How may I assist you today?",
+                        comments: []
                       },
                       {
+                        id: "line2",
                         speaker: { name: "Customer", isAgent: false },
-                        text: "Hi, I'm having trouble logging into my account. Can you help me?"
+                        text: "Hi, I'm having trouble logging into my account. Can you help me?",
+                        comments: ["This is a common issue. Let's investigate further."]
                       },
                       {
+                        id: "line3",
                         speaker: { name: "Agent", isAgent: true },
-                        text: "Of course, I'd be happy to help. Can you please provide me with your username or email address associated with the account?"
+                        text: "Of course, I'd be happy to help. Can you please provide me with your username or email address associated with the account?",
+                        comments: []
                       },
                       {
+                        id: "line4",
                         speaker: { name: "Customer", isAgent: false },
-                        text: "Sure, my email is john.doe@example.com"
+                        text: "Sure, my email is john.doe@example.com",
+                        comments: []
                       },
                       {
+                        id: "line5",
                         speaker: { name: "Agent", isAgent: true },
-                        text: "Thank you. I've located your account. Let's try resetting your password. I'll send you an email with instructions. Is that okay?"
+                        text: "Thank you. I've located your account. Let's try resetting your password. I'll send you an email with instructions. Is that okay?",
+                        comments: []
                       },
                       {
+                        id: "line6",
                         speaker: { name: "Customer", isAgent: false },
-                        text: "Yes, that would be great. Thank you!"
+                        text: "Yes, that would be great. Thank you!",
+                        comments: []
                       }
                     ]
                   });
