@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react';
-
+import MainNavbar from '../../componenets/MainNavbar';
 import { motion } from 'framer-motion';
 import { FaEdit, FaFileAlt, FaRobot, FaStar, FaUpload, FaComments, FaChartLine, FaShareAlt } from 'react-icons/fa';
 
@@ -9,7 +9,7 @@ export default function Home() {
 
   return (
     <>
-      
+      <MainNavbar />
       <div className="bg-[#03050c] min-h-screen text-[#fafafa] pt-12 px-4 sm:px-6">
         {/* Hero Section */}
         <motion.section 
