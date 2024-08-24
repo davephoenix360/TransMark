@@ -3,10 +3,13 @@ import React, { useState } from 'react';
 import Footer from '../../../componenets/Footer';
 import Navbar from '../../../componenets/Navbar';
 import ChatbotWindow from '../../../componenets/ChatbotWindow';
+import TranscriptEditor from '../../../componenets/TranscriptEditor';
 
 export default function Home() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [selectedTranscript, setSelectedTranscript] = useState(null);
 
   return (
     <>
@@ -48,11 +51,46 @@ export default function Home() {
               <p className="mt-2">Snippet or details of the transcript goes here...</p>
             </div>
             <div className="flex justify-end space-x-4 mt-4">
-              <button className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative">
+              <button 
+                className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative"
+                onClick={() => {
+                  setSelectedTranscript({
+                    id: "1234",
+                    title: "Customer Support Call #1234",
+                    lines: [
+                      {
+                        speaker: { name: "Agent", isAgent: true },
+                        text: "Thank you for calling our support line. How may I assist you today?"
+                      },
+                      {
+                        speaker: { name: "Customer", isAgent: false },
+                        text: "Hi, I'm having trouble logging into my account. Can you help me?"
+                      },
+                      {
+                        speaker: { name: "Agent", isAgent: true },
+                        text: "Of course, I'd be happy to help. Can you please provide me with your username or email address associated with the account?"
+                      },
+                      {
+                        speaker: { name: "Customer", isAgent: false },
+                        text: "Sure, my email is john.doe@example.com"
+                      },
+                      {
+                        speaker: { name: "Agent", isAgent: true },
+                        text: "Thank you. I've located your account. Let's try resetting your password. I'll send you an email with instructions. Is that okay?"
+                      },
+                      {
+                        speaker: { name: "Customer", isAgent: false },
+                        text: "Yes, that would be great. Thank you!"
+                      }
+                    ]
+                  });
+                  setIsEditorOpen(true);
+                }}
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                 </svg>
-                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Edit</span>
+                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Add Comment</span>
               </button>
               <button className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -65,9 +103,10 @@ export default function Home() {
                 onClick={() => setIsChatbotOpen(true)}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Chatbot</span>
+                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Open Chatbot</span>
               </button>
             </div>
           </div>
@@ -77,6 +116,11 @@ export default function Home() {
      
       {/* Remove the Footer component if it's not defined */}
       <ChatbotWindow isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
+      <TranscriptEditor
+        isOpen={isEditorOpen}
+        onClose={() => setIsEditorOpen(false)}
+        transcript={selectedTranscript}
+      />
     </>
   );
 }
