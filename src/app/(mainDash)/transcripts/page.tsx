@@ -2,9 +2,11 @@
 import React, { useState } from 'react';
 import Footer from '../../../componenets/Footer';
 import Navbar from '../../../componenets/Navbar';
+import ChatbotWindow from '../../../componenets/ChatbotWindow';
 
 export default function Home() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
 
   return (
     <>
@@ -58,7 +60,10 @@ export default function Home() {
                 </svg>
                 <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">View Summary</span>
               </button>
-              <button className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative">
+              <button 
+                className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative"
+                onClick={() => setIsChatbotOpen(true)}
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
@@ -71,6 +76,7 @@ export default function Home() {
       </div>
      
       {/* Remove the Footer component if it's not defined */}
+      <ChatbotWindow isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
     </>
   );
 }
