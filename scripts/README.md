@@ -224,3 +224,139 @@ curl -X DELETE "https://pde9nag7w2.execute-api.us-east-2.amazonaws.com/prod/comm
 ---
 
 This documentation provides a comprehensive guide on how to use the TransMark API for managing comments on transcripts, including the various endpoints and examples of how to interact with them.
+
+---
+
+# File Upload API Documentation
+
+## API Endpoint
+
+**Base URL:** `https://6ssnwence3.execute-api.us-east-2.amazonaws.com/v1`
+
+## Endpoints
+
+### 1. **Upload File**
+
+- **URL:** `/upload`
+- **Method:** `POST`
+- **Description:** Uploads a file to an S3 bucket after encoding it in base64.
+
+#### Request
+
+**Headers:**
+- `Content-Type: application/json`
+
+**Body:**
+
+```json
+{
+  "file_name": "string",
+  "file_content": "string"
+}
+```
+
+- `file_name` (string): The name of the file, including the file extension (e.g., `example.pdf`).
+- `file_content` (string): The base64-encoded content of the file.
+
+**Example Request:**
+
+```json
+POST https://6ssnwence3.execute-api.us-east-2.amazonaws.com/v1/upload
+Content-Type: application/json
+
+{
+  "file_name": "example.pdf",
+  "file_content": "JVBERi0xLjQKJ... (base64-encoded content)"
+}
+```
+
+#### Response
+
+**Success:**
+
+- **Status Code:** `200 OK`
+- **Body:**
+
+```json
+{
+  "message": "File uploaded successfully!"
+}
+```
+
+**Error:**
+
+- **Status Code:** `400 Bad Request` (for invalid input)
+- **Body:**
+
+```json
+{
+  "message": "Error message describing what went wrong"
+}
+```
+
+- **Status Code:** `500 Internal Server Error` (for server issues)
+- **Body:**
+
+```json
+{
+  "message": "Internal server error"
+}
+```
+
+## How to Use
+
+1. **Prepare Your File:**
+   - Encode the file to base64 format. You can use tools or code snippets to encode the file (e.g., using JavaScript or Python).
+
+2. **Send the Request:**
+   - Use an HTTP client like Postman or a frontend application to send a `POST` request to the `/upload` endpoint.
+   - Include the `file_name` and `file_content` in the request body.
+
+3. **Check the Response:**
+   - If successful, you will receive a `200 OK` response with a confirmation message.
+   - If there's an issue with the request, the response will include an error message indicating what went wrong.
+
+## Example Usage
+
+### **Using Postman**
+
+1. **Set the Request Type:** `POST`
+2. **Set the URL:** `https://6ssnwence3.execute-api.us-east-2.amazonaws.com/v1/upload`
+3. **Set the Headers:** `Content-Type: application/json`
+4. **Set the Body Type to JSON:** 
+   - Example JSON body:
+     ```json
+     {
+       "file_name": "example.pdf",
+       "file_content": "base64-encoded-string-of-the-pdf"
+     }
+     ```
+5. **Send the Request** and review the response.
+
+### **Using JavaScript (Frontend Example)**
+
+```javascript
+const uploadFileToS3 = async (base64File, fileName) => {
+    const response = await fetch('https://6ssnwence3.execute-api.us-east-2.amazonaws.com/v1/upload', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            file_name: fileName,
+            file_content: base64File,
+        }),
+    });
+    const result = await response.json();
+    return result;
+};
+```
+
+## Notes
+
+- Ensure the base64 string is correctly encoded and does not include unnecessary prefixes (e.g., `data:application/pdf;base64,`).
+- Check the API Gateway and Lambda logs in AWS CloudWatch for debugging if you encounter issues.
+
+---
+
+This documentation provides a clear guide for using your file upload API, including request and response formats, example usage, and troubleshooting tips.
