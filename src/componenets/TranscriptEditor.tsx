@@ -1,87 +1,138 @@
-import React, { useState, useRef, useEffect } from 'react';
-
-interface TranscriptLine {
-  id: string;
-  speaker: {
-    name: string;
-    isAgent: boolean;
-  };
-  text: string;
-  comments: Array<{
-    id: string;
-    text: string;
-    selection?: {
-      start: number;
-      end: number;
-    };
-  }>;
-}
+import React, { useState, useEffect, useRef } from 'react';
 
 interface TranscriptEditorProps {
   isOpen: boolean;
   onClose: () => void;
   transcript: {
+    id: string;
     title: string;
-    lines: TranscriptLine[];
+    content: string;
   } | null;
+  comments: Comment[];
+  onAddComment: (comment: Comment) => void;
+  onDeleteComment: (commentId: string) => void;
 }
 
-const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, transcript }) => {
-  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+interface DialogueLine {
+  id: string;
+  speaker: string;
+  text: string;
+}
+
+interface Comment {
+  id: string;
+  text: string;
+  lineId: string;
+  selectedText?: string;
+  parentCommentId?: string;
+}
+
+const CommentComponent: React.FC<{ 
+  comment: Comment; 
+  onDelete: (id: string) => void;
+  onReply: (parentCommentId: string) => void;
+}> = ({ comment, onDelete, onReply }) => (
+  <div className="bg-[#2a2d3a] p-2 rounded mt-2">
+    {comment.selectedText && (
+      <p className="text-gray-400 text-sm italic mb-1">"{comment.selectedText}"</p>
+    )}
+    <p className="text-white">{comment.text}</p>
+    <div className="flex justify-between mt-1">
+      <button onClick={() => onReply(comment.id)} className="text-blue-400 text-sm">Reply</button>
+      <button onClick={() => onDelete(comment.id)} className="text-red-400 text-sm">Delete</button>
+    </div>
+  </div>
+);
+
+const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ 
+  isOpen, 
+  onClose, 
+  transcript, 
+  comments = [], // Provide a default empty array
+  onAddComment, 
+  onDeleteComment 
+}) => {
+  const [dialogueLines, setDialogueLines] = useState<DialogueLine[]>([]);
+  const [isFullTranscriptVisible, setIsFullTranscriptVisible] = useState(false);
+  const [selectedText, setSelectedText] = useState<{ lineId: string; text: string } | null>(null);
   const [newComment, setNewComment] = useState('');
-  const [selection, setSelection] = useState<{ lineId: string; start: number; end: number } | null>(null);
-  const editorRef = useRef<HTMLDivElement>(null);
+  const [activeCommentLineId, setActiveCommentLineId] = useState<string | null>(null);
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleMouseUp = () => {
-      const selectedText = window.getSelection()?.toString();
-      if (selectedText && editorRef.current) {
-        const range = window.getSelection()?.getRangeAt(0);
-        const lineElement = range?.startContainer.parentElement?.closest('[data-line-id]');
-        if (lineElement) {
-          const lineId = lineElement.getAttribute('data-line-id');
-          const preSelectionRange = range?.cloneRange();
-          if (preSelectionRange && lineId && range) {
-            preSelectionRange.selectNodeContents(lineElement);
-            preSelectionRange.setEnd(range.startContainer, range.startOffset);
-            const start = preSelectionRange.toString().length;
-            setSelection({
-              lineId,
-              start,
-              end: start + selectedText.length,
+    if (transcript && transcript.content) {
+      const lines = transcript.content.split('\n').filter(line => line.trim() !== '');
+      const parsedLines: DialogueLine[] = [];
+      let currentSpeaker = '';
+      let currentText = '';
+
+      lines.forEach((line, index) => {
+        if (line.includes(':')) {
+          if (currentSpeaker && currentText) {
+            parsedLines.push({
+              id: `line-${parsedLines.length}`,
+              speaker: currentSpeaker,
+              text: currentText.trim()
             });
           }
+          [currentSpeaker, currentText] = line.split(':');
+        } else {
+          currentText += ' ' + line;
         }
-      } else {
-        setSelection(null);
+      });
+
+      if (currentSpeaker && currentText) {
+        parsedLines.push({
+          id: `line-${parsedLines.length}`,
+          speaker: currentSpeaker,
+          text: currentText.trim()
+        });
       }
-    };
 
-    document.addEventListener('mouseup', handleMouseUp);
-    return () => document.removeEventListener('mouseup', handleMouseUp);
-  }, []);
+      setDialogueLines(parsedLines);
+    }
+  }, [transcript]);
 
-  if (!isOpen || !transcript) return null;
-
-  const AgentIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
-    </svg>
-  );
-
-  const CustomerIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-500" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-    </svg>
-  );
-
-  const handleCommentSubmit = (lineId: string) => {
-    // Add logic to save the comment
-    console.log('New comment for line', lineId, ':', newComment, 'Selection:', selection);
-    setNewComment('');
-    setActiveCommentId(null);
-    setSelection(null);
+  const handleTextSelection = (lineId: string) => {
+    const selection = window.getSelection();
+    if (selection && selection.toString().trim() !== '') {
+      setSelectedText({ lineId, text: selection.toString() });
+    } else {
+      setSelectedText(null);
+    }
   };
+
+  const handleAddComment = (lineId: string) => {
+    if (newComment.trim() !== '') {
+      const comment: Comment = {
+        id: `comment-${Date.now()}`,
+        text: newComment,
+        lineId,
+        selectedText: selectedText?.lineId === lineId ? selectedText.text : undefined,
+        parentCommentId: replyingToCommentId || undefined,
+      };
+      onAddComment(comment);
+      setNewComment('');
+      setActiveCommentLineId(null);
+      setSelectedText(null);
+      setReplyingToCommentId(null);
+    }
+  };
+
+  const handleCancelComment = () => {
+    setNewComment('');
+    setActiveCommentLineId(null);
+    setSelectedText(null);
+    setReplyingToCommentId(null);
+  };
+
+  const handleReplyToComment = (parentCommentId: string) => {
+    setReplyingToCommentId(parentCommentId);
+    setActiveCommentLineId(comments.find(c => c.id === parentCommentId)?.lineId || null);
+  };
+
+  // Add this check at the beginning of the component
+  if (!isOpen || !transcript) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -94,86 +145,105 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, tr
             </svg>
           </button>
         </div>
-        <div className="flex-grow overflow-y-auto p-4" ref={editorRef}>
-          {transcript.lines.map((line) => (
-            <div key={line.id} className="mb-6 bg-[#222530] p-4 rounded-lg relative" data-line-id={line.id}>
+        <div className="flex-grow overflow-y-auto p-4">
+          <div className="mb-6">
+            <button
+              className="bg-[#222530] text-white p-2 rounded-lg w-full text-left"
+              onClick={() => setIsFullTranscriptVisible(!isFullTranscriptVisible)}
+            >
+              {isFullTranscriptVisible ? 'Hide' : 'Show'} Full Transcript
+            </button>
+            {isFullTranscriptVisible && (
+              <div className="mt-2 bg-[#222530] p-4 rounded-lg">
+                <h3 className="text-xl font-semibold text-white mb-2">Transcript Content</h3>
+                <pre className="text-gray-300 whitespace-pre-wrap">{transcript.content}</pre>
+              </div>
+            )}
+          </div>
+          {dialogueLines.map((line) => (
+            <div 
+              key={line.id} 
+              className="mb-6 bg-[#222530] p-4 rounded-lg relative" 
+              data-line-id={line.id}
+              onMouseUp={() => handleTextSelection(line.id)}
+            >
               <div className="flex items-start mb-2">
-                {line.speaker.isAgent ? <AgentIcon /> : <CustomerIcon />}
+                <div className="w-6 h-6 bg-gray-500 rounded-full"></div>
                 <div className="ml-3 flex-grow">
-                  <span className="font-semibold text-white">{line.speaker.name}</span>
+                  <span className="font-semibold text-white">{line.speaker}</span>
                   <p className="text-gray-300 mt-1">{line.text}</p>
                 </div>
               </div>
               <div className="mt-2 ml-11 flex items-center">
                 <button 
                   className="text-blue-400 hover:text-blue-300 transition-colors duration-200 text-sm mr-2"
-                  onClick={() => setActiveCommentId(line.id)}
+                  onClick={() => setActiveCommentLineId(activeCommentLineId === line.id ? null : line.id)}
                 >
                   Reply
                 </button>
-                {selection && selection.lineId === line.id && (
+                {selectedText && selectedText.lineId === line.id && (
                   <button 
-                    className="text-blue-400 hover:text-blue-300 transition-colors duration-200 text-sm flex items-center"
-                    onClick={() => setActiveCommentId(line.id)}
+                    className="text-green-400 hover:text-green-300 transition-colors duration-200 text-sm"
+                    onClick={() => setActiveCommentLineId(line.id)}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2zM5 7a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zm1 3a1 1 0 100 2h3a1 1 0 100-2H6z" clipRule="evenodd" />
-                    </svg>
-                    Comment on selection
+                    Comment on Selection
                   </button>
                 )}
               </div>
-              {line.comments.map((comment, index) => (
-                <div key={index} className="ml-11 mt-2 bg-[#2a2e3b] p-3 rounded-lg">
-                  <p className="text-gray-300">
-                    {comment.selection ? (
-                      <>
-                        <span className="font-semibold">Selected text: </span>
-                        <span className="italic">"{line.text.slice(comment.selection.start, comment.selection.end)}"</span>
-                        <br />
-                      </>
-                    ) : null}
-                    {comment.text}
-                  </p>
-                </div>
-              ))}
-              {activeCommentId === line.id && (
-                <div className="ml-11 mt-4">
-                  <div className="bg-[#2a2e3b] p-4 rounded-lg shadow-inner">
-                    <textarea
-                      className="w-full p-2 rounded bg-[#343845] text-white border border-[#4a4f5e] focus:outline-none focus:border-[#596066] focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-                      rows={3}
-                      placeholder="Write a comment..."
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                    ></textarea>
-                    {selection && selection.lineId === line.id && (
-                      <p className="text-gray-400 mt-2">
-                        <span className="font-semibold">Selected text: </span>
-                        <span className="italic">"{line.text.slice(selection.start, selection.end)}"</span>
-                      </p>
-                    )}
-                    <div className="flex justify-end mt-3 space-x-2">
-                      <button 
-                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors duration-200 text-sm"
-                        onClick={() => {
-                          setActiveCommentId(null);
-                          setNewComment('');
-                          setSelection(null);
-                        }}
-                      >
-                        Cancel
-                      </button>
-                      <button 
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors duration-200 text-sm"
-                        onClick={() => handleCommentSubmit(line.id)}
-                      >
-                        Comment
-                      </button>
-                    </div>
+              {activeCommentLineId === line.id && (
+                <div className="mt-2 ml-11">
+                  {selectedText && selectedText.lineId === line.id && (
+                    <p className="text-gray-400 text-sm italic mb-1">Commenting on: "{selectedText.text}"</p>
+                  )}
+                  {replyingToCommentId && (
+                    <p className="text-gray-400 text-sm italic mb-1">Replying to comment</p>
+                  )}
+                  <textarea
+                    className="w-full bg-[#2a2d3a] text-white p-2 rounded"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Write your comment here..."
+                  />
+                  <div className="mt-2 flex justify-end">
+                    <button 
+                      className="bg-gray-500 text-white px-3 py-1 rounded mr-2"
+                      onClick={handleCancelComment}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      className="bg-blue-500 text-white px-3 py-1 rounded"
+                      onClick={() => handleAddComment(line.id)}
+                    >
+                      Add Comment
+                    </button>
                   </div>
                 </div>
               )}
+              {Array.isArray(comments) && comments
+                .filter(comment => comment.lineId === line.id && !comment.parentCommentId)
+                .map(comment => (
+                  <React.Fragment key={comment.id}>
+                    <CommentComponent 
+                      comment={comment} 
+                      onDelete={onDeleteComment}
+                      onReply={handleReplyToComment}
+                    />
+                    {comments
+                      .filter(reply => reply.parentCommentId === comment.id)
+                      .map(reply => (
+                        <div key={reply.id} className="ml-4 mt-2">
+                          <CommentComponent 
+                            comment={reply} 
+                            onDelete={onDeleteComment}
+                            onReply={handleReplyToComment}
+                          />
+                        </div>
+                      ))
+                    }
+                  </React.Fragment>
+                ))
+              }
             </div>
           ))}
         </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import axios from 'axios';
 import { formatDateTime } from '../utils/dateUtils';
@@ -6,72 +6,66 @@ import { formatDateTime } from '../utils/dateUtils';
 interface UploadTranscriptModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUploadSuccess: (transcript: any) => void;
+  onUploadSuccess: (transcript: Transcript) => void;
 }
 
 const UploadTranscriptModal: React.FC<UploadTranscriptModalProps> = ({ isOpen, onClose, onUploadSuccess }) => {
-  const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState('');
+  const [content, setContent] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-    }
+  const resetForm = () => {
+    setTitle('');
+    setContent('');
+    setError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      setError('Please select a file to upload');
-      return;
-    }
-
-    setIsUploading(true);
-    setError('');
-
-    const createdDate = new Date(file.lastModified);
-    const uploadDate = new Date();
-    const { formattedDate: createdFormattedDate, formattedTime: createdFormattedTime } = formatDateTime(createdDate);
-    const { formattedDate: uploadFormattedDate, formattedTime: uploadFormattedTime } = formatDateTime(uploadDate);
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('title', title);
-    formData.append('description', description);
-    formData.append('createdDate', createdFormattedDate);
-    formData.append('createdTime', createdFormattedTime);
-    formData.append('uploadDate', uploadFormattedDate);
-    formData.append('uploadTime', uploadFormattedTime);
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const response = await axios.post('/api/upload-transcript', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const requestBody = {
+        title,
+        content,
+        createdDate: new Date().toISOString(),
+      };
+
+      console.log('Sending request with data:', JSON.stringify(requestBody));
+
+      const response = await axios.post(
+        'https://pde9nag7w2.execute-api.us-east-2.amazonaws.com/Dev1/upload-transcript',
+        requestBody,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
       
-      if (response.data.success) {
-        console.log('Upload successful:', response.data);
-        onUploadSuccess(response.data.transcript);
+      console.log('Response:', response.data);
+
+      if (response.data.Operation === 'UPLOAD' && response.data.Message === 'SUCCESS') {
+        const newTranscript: Transcript = response.data.Item;
+        onUploadSuccess(newTranscript);
         resetForm();
         onClose();
       } else {
-        throw new Error(response.data.message);
+        throw new Error(response.data.Message || 'Upload failed');
       }
     } catch (error) {
-      console.error('Upload failed:', error);
-      setError('Upload failed. Please try again.');
+      console.error('Error uploading transcript:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('Response data:', error.response.data);
+        setError(`Failed to upload transcript: ${error.response.data.message || error.message}`);
+      } else {
+        setError('Failed to upload transcript. Please try again.');
+      }
     } finally {
-      setIsUploading(false);
+      setIsLoading(false);
     }
-  };
-
-  const resetForm = () => {
-    setFile(null);
-    setTitle('');
-    setDescription('');
-    setError('');
   };
 
   return (
@@ -92,25 +86,12 @@ const UploadTranscriptModal: React.FC<UploadTranscriptModalProps> = ({ isOpen, o
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Description</label>
+              <label className="block text-sm font-medium mb-1">Transcript Content</label>
               <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
                 className="w-full p-2 rounded-lg bg-[#151517] text-white border border-[#383f45] focus:outline-none focus:border-[#596066]"
-                rows={3}
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">File</label>
-              <input
-                type="file"
-                onChange={handleFileChange}
-                className="w-full p-2 text-sm text-[#fafafa]
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-full file:border-0
-                file:text-sm file:font-semibold
-                file:bg-[#fff500] file:text-black
-                hover:file:bg-white"
+                rows={10}
                 required
               />
             </div>
@@ -128,10 +109,10 @@ const UploadTranscriptModal: React.FC<UploadTranscriptModalProps> = ({ isOpen, o
               </button>
               <button
                 type="submit"
-                disabled={isUploading}
+                disabled={isLoading}
                 className="px-4 py-2 text-sm font-medium text-black bg-[#fff500] rounded-lg hover:bg-white transition-colors"
               >
-                {isUploading ? 'Uploading...' : 'Upload'}
+                {isLoading ? 'Uploading...' : 'Upload Transcript'}
               </button>
             </div>
           </form>
