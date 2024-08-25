@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import axios from 'axios';
 import { formatDateTime } from '../utils/dateUtils';
@@ -6,7 +6,7 @@ import { formatDateTime } from '../utils/dateUtils';
 interface UploadTranscriptModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUploadSuccess: (transcript: any) => void;
+  onUploadSuccess: (transcript: Transcript) => void;
 }
 
 const UploadTranscriptModal: React.FC<UploadTranscriptModalProps> = ({ isOpen, onClose, onUploadSuccess }) => {
@@ -32,39 +32,72 @@ const UploadTranscriptModal: React.FC<UploadTranscriptModalProps> = ({ isOpen, o
     setIsUploading(true);
     setError('');
 
-    const createdDate = new Date(file.lastModified);
-    const uploadDate = new Date();
-    const { formattedDate: createdFormattedDate, formattedTime: createdFormattedTime } = formatDateTime(createdDate);
-    const { formattedDate: uploadFormattedDate, formattedTime: uploadFormattedTime } = formatDateTime(uploadDate);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const fileContent = event.target?.result as string;
+      // Remove the data URL prefix if present
+      const base64Content = fileContent.split(',')[1] || fileContent;
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('title', title);
-    formData.append('description', description);
-    formData.append('createdDate', createdFormattedDate);
-    formData.append('createdTime', createdFormattedTime);
-    formData.append('uploadDate', uploadFormattedDate);
-    formData.append('uploadTime', uploadFormattedTime);
+      try {
+        const requestBody = {
+          file: base64Content,
+          file_name: file.name,
+          title,
+          description,
+          createdDate: new Date(file.lastModified).toISOString(),
+        };
 
-    try {
-      const response = await axios.post('/api/upload-transcript', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      
-      if (response.data.success) {
-        console.log('Upload successful:', response.data);
-        onUploadSuccess(response.data.transcript);
-        resetForm();
-        onClose();
-      } else {
-        throw new Error(response.data.message);
+        console.log('Sending request with data:', {
+          ...requestBody,
+          file: base64Content.substring(0, 100) + '...' // Log only the first 100 characters of the file content
+        });
+
+        const response = await axios.post(
+          'https://pde9nag7w2.execute-api.us-east-2.amazonaws.com/Dev1/upload-transcript',
+          JSON.stringify(requestBody),
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          }
+        );
+        
+        console.log('Response:', response.data);
+
+        if (response.data.Operation === 'UPLOAD' && response.data.Message === 'SUCCESS') {
+          console.log('Upload successful:', response.data);
+          const newTranscript: Transcript = response.data.Item;
+          handleUploadSuccess(newTranscript);
+          resetForm();
+          onClose();
+        } else {
+          throw new Error(response.data.Message || 'Upload failed');
+        }
+      } catch (error) {
+        console.error('Upload failed:', error);
+        if (axios.isAxiosError(error)) {
+          if (error.response) {
+            console.error('Response data:', error.response.data);
+            console.error('Response status:', error.response.status);
+            console.error('Response headers:', error.response.headers);
+            setError(`Upload failed: ${error.response.data.message || error.response.statusText}`);
+          } else if (error.request) {
+            console.error('No response received:', error.request);
+            setError('Upload failed: No response received from server');
+          } else {
+            console.error('Error setting up request:', error.message);
+            setError(`Upload failed: ${error.message}`);
+          }
+        } else {
+          console.error('Non-Axios error:', error);
+          setError(`Upload failed: ${error.message}`);
+        }
+      } finally {
+        setIsUploading(false);
       }
-    } catch (error) {
-      console.error('Upload failed:', error);
-      setError('Upload failed. Please try again.');
-    } finally {
-      setIsUploading(false);
-    }
+    };
+
+    reader.readAsDataURL(file);
   };
 
   const resetForm = () => {
@@ -72,6 +105,17 @@ const UploadTranscriptModal: React.FC<UploadTranscriptModalProps> = ({ isOpen, o
     setTitle('');
     setDescription('');
     setError('');
+  };
+
+  const handleUploadSuccess = (responseData: Transcript) => {
+    console.log('Upload response:', responseData);
+    
+    if (responseData && responseData.transcript_id) {
+      console.log('New transcript ID:', responseData.transcript_id);
+      onUploadSuccess(responseData);
+    } else {
+      console.error('New transcript is missing or has no transcript_id', responseData);
+    }
   };
 
   return (

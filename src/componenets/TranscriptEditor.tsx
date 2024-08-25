@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import axios from 'axios';
 
 interface TranscriptLine {
   id: string;
@@ -23,6 +24,7 @@ interface TranscriptEditorProps {
   transcript: {
     title: string;
     lines: TranscriptLine[];
+    filePath: string;
   } | null;
 }
 
@@ -31,6 +33,26 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, tr
   const [newComment, setNewComment] = useState('');
   const [selection, setSelection] = useState<{ lineId: string; start: number; end: number } | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const [transcriptContent, setTranscriptContent] = useState<string>('');
+
+  useEffect(() => {
+    if (transcript && transcript.filePath) {
+      fetchTranscriptContent(transcript.filePath);
+    }
+  }, [transcript]);
+
+  const fetchTranscriptContent = async (filePath: string) => {
+    try {
+      const response = await axios.get(`/api/get-transcript-content?filePath=${filePath}`);
+      if (response.data.success) {
+        setTranscriptContent(response.data.content);
+      } else {
+        console.error('Failed to fetch transcript content:', response.data.message);
+      }
+    } catch (error) {
+      console.error('Error fetching transcript content:', error);
+    }
+  };
 
   useEffect(() => {
     const handleMouseUp = () => {
@@ -75,12 +97,36 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, tr
     </svg>
   );
 
-  const handleCommentSubmit = (lineId: string) => {
-    // Add logic to save the comment
-    console.log('New comment for line', lineId, ':', newComment, 'Selection:', selection);
-    setNewComment('');
-    setActiveCommentId(null);
-    setSelection(null);
+  const handleCommentSubmit = async (lineId: string) => {
+    try {
+      const response = await axios.post('https://pde9nag7w2.execute-api.us-east-2.amazonaws.com/prod/comment', {
+        transcript_id: transcript?.id,
+        comment_text: newComment,
+        word_index: selection ? selection.start : null,
+        selection: selection ? {
+          start: selection.start,
+          end: selection.end
+        } : null
+      });
+
+      if (response.data.Operation === 'SAVE' && response.data.Message === 'SUCCESS') {
+        // Update the local state with the new comment
+        const updatedTranscript = { ...transcript };
+        const lineIndex = updatedTranscript.lines.findIndex(line => line.id === lineId);
+        if (lineIndex !== -1) {
+          updatedTranscript.lines[lineIndex].comments.push(response.data.Item);
+          setTranscript(updatedTranscript);
+        }
+
+        setNewComment('');
+        setActiveCommentId(null);
+        setSelection(null);
+      } else {
+        console.error('Failed to save comment:', response.data);
+      }
+    } catch (error) {
+      console.error('Error saving comment:', error);
+    }
   };
 
   return (
@@ -95,6 +141,10 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, tr
           </button>
         </div>
         <div className="flex-grow overflow-y-auto p-4" ref={editorRef}>
+          <div className="mb-6 bg-[#222530] p-4 rounded-lg">
+            <h3 className="text-xl font-semibold text-white mb-2">Transcript Content</h3>
+            <pre className="text-gray-300 whitespace-pre-wrap">{transcriptContent}</pre>
+          </div>
           {transcript.lines.map((line) => (
             <div key={line.id} className="mb-6 bg-[#222530] p-4 rounded-lg relative" data-line-id={line.id}>
               <div className="flex items-start mb-2">
