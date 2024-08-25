@@ -13,8 +13,19 @@ interface Transcript {
   created_date: string;
   upload_date: string;
   file_url: string;
-  content: string; // Added content field
-  // Add any other fields that are returned by the server
+  content: string;
+  lines?: Array<{
+    id: string;
+    text: string;
+    speaker?: {
+      name: string;
+      isAgent?: boolean;
+    };
+    comments?: Array<{
+      selection?: string;
+      text: string;
+    }>;
+  }>;
 }
 
 export default function Home() {
@@ -39,7 +50,11 @@ export default function Home() {
       setTranscripts(response.data);
     } catch (err) {
       console.error('Failed to fetch transcripts:', err);
-      setError('Failed to load transcripts. Please try again later.');
+      if (axios.isAxiosError(err) && err.response) {
+        setError(`Failed to load transcripts. Server responded with: ${err.response.status} ${err.response.statusText}. ${err.response.data.message || ''}`);
+      } else {
+        setError('Failed to load transcripts. Please try again later.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +64,24 @@ export default function Home() {
     setTranscripts(prevTranscripts => [newTranscript, ...prevTranscripts]);
     setIsUploadModalOpen(false);
   };
- 
+
+  const deleteAllTranscripts = async () => {
+    if (window.confirm('Are you sure you want to delete all transcripts? This action cannot be undone.')) {
+      try {
+        await axios.delete('https://pde9nag7w2.execute-api.us-east-2.amazonaws.com/Dev1/upload-transcript');
+        // Refresh the transcripts list
+        fetchTranscripts();
+      } catch (error) {
+        console.error('Error deleting all transcripts:', error);
+        if (axios.isAxiosError(error) && error.response) {
+          setError(`Failed to delete transcripts. Server error: ${error.response.data.message || error.message}`);
+        } else {
+          setError('Failed to delete transcripts. Please try again.');
+        }
+      }
+    }
+  };
+
   return (
     <>
       <Navbar />
@@ -70,6 +102,12 @@ export default function Home() {
               onClick={() => setIsUploadModalOpen(true)}
             >
               Upload Transcript
+            </button>
+            <button 
+              className="btn-danger ml-4"
+              onClick={deleteAllTranscripts}
+            >
+              Delete All Transcripts
             </button>
             <div className={`flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 ${isFilterOpen ? 'block' : 'hidden sm:flex'}`}>
               <button className="btn-primary w-full sm:w-auto">Filter by Date</button>
@@ -109,10 +147,7 @@ export default function Home() {
                   <button 
                     className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative"
                     onClick={() => {
-                      setSelectedTranscript({
-                        ...transcript,
-                        lines: transcript.content ? transcript.content.split('\n') : []
-                      });
+                      setSelectedTranscript(transcript);
                       setIsEditorOpen(true);
                     }}
                   >
@@ -149,7 +184,7 @@ export default function Home() {
         onClose={() => setIsEditorOpen(false)}
         transcript={selectedTranscript ? {
           title: selectedTranscript.title,
-          lines: selectedTranscript.lines || []
+          content: selectedTranscript.content
         } : null}
       />
       <UploadTranscriptModal
