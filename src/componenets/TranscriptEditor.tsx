@@ -41,7 +41,7 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, tr
         if (lineElement) {
           const lineId = lineElement.getAttribute('data-line-id');
           const preSelectionRange = range?.cloneRange();
-          if (preSelectionRange && lineId) {
+          if (preSelectionRange && lineId && range) {
             preSelectionRange.selectNodeContents(lineElement);
             preSelectionRange.setEnd(range.startContainer, range.startOffset);
             const start = preSelectionRange.toString().length;

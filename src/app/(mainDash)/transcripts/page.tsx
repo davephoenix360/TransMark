@@ -1,14 +1,55 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '../../../componenets/Navbar';
 import ChatbotWindow from '../../../componenets/ChatbotWindow';
 import TranscriptEditor from '../../../componenets/TranscriptEditor';
+import UploadTranscriptModal from '../../../componenets/UploadTranscriptModal';
+
+interface Transcript {
+  id: string;
+  title: string;
+  createdDate: string;
+  modifiedDate: string;
+  snippet: string;
+  lines?: any[]; // Add proper type for lines if available
+  description: string;
+  uploadDate: string;
+  filePath: string;
+}
 
 export default function Home() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [selectedTranscript, setSelectedTranscript] = useState(null);
+  const [selectedTranscript, setSelectedTranscript] = useState<Transcript | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [transcripts, setTranscripts] = useState<Transcript[]>([]);
+
+  useEffect(() => {
+    fetchTranscripts();
+  }, []);
+
+  const fetchTranscripts = async () => {
+    // Implement API call to fetch transcripts
+    // For now, we'll use mock data
+    setTranscripts([
+      {
+        id: '1',
+        title: 'Customer Support Call #1234',
+        createdDate: '2023-04-01',
+        modifiedDate: '2023-04-02',
+        snippet: 'Snippet or details of the transcript goes here...',
+        description: 'This is a sample transcript',
+        uploadDate: '2023-04-02',
+        filePath: '/uploads/1234567890-Transcript.mp3',
+      },
+      // Add more mock transcripts as needed
+    ]);
+  };
+
+  const handleUploadSuccess = (newTranscript: Transcript) => {
+    setTranscripts([newTranscript, ...transcripts]);
+  };
 
   return (
     <>
@@ -17,19 +58,19 @@ export default function Home() {
         {/* Page Title */}
         <h1 className="text-3xl font-bold text-center mb-6 mt-6">Transcripts</h1>
 
-        {/* Search and Filter Section */}
+        {/* Search, Filter, and Upload Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-[#03050c] sticky top-12 z-10 mt-6">
           <input 
             type="text" 
             placeholder="Search transcripts..." 
             className="w-full sm:w-2/3 p-3 rounded-lg bg-[#151517] text-white border border-[#383f45] focus:outline-none focus:border-[#596066] mb-4 sm:mb-0"
           />
-          <div className="w-full sm:w-auto">
+          <div className="w-full sm:w-auto flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
             <button 
-              className="btn-primary w-full sm:hidden mb-2"
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className="btn-primary w-full sm:w-auto"
+              onClick={() => setIsUploadModalOpen(true)}
             >
-              {isFilterOpen ? 'Hide Filters' : 'Show Filters'}
+              Upload Transcript
             </button>
             <div className={`flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 ${isFilterOpen ? 'block' : 'hidden sm:flex'}`}>
               <button className="btn-primary w-full sm:w-auto">Filter by Date</button>
@@ -41,92 +82,58 @@ export default function Home() {
 
         {/* Transcript Grid Section */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-6 mt-6">
-          {/* Transcript Card (Example) */}
-          <div className="bg-[#191b22] p-6 rounded-lg shadow-md hover:border-[#383f45] border border-transparent transition-colors flex flex-col justify-between">
-            <h3 className="text-lg font-semibold text-white mb-2">Transcript Title</h3>
-            <div className="text-[#9ea5ad] mb-4">
-              <p><span className="font-bold text-[#ced2d6]">Created:</span> 10/08/2024</p>
-              <p><span className="font-bold text-[#ced2d6]">Modified:</span> 12/08/2024</p>
-              <p className="mt-2">Snippet or details of the transcript goes here...</p>
+          {transcripts.map((transcript) => (
+            <div key={transcript.id} className="bg-[#191b22] p-6 rounded-lg shadow-md hover:border-[#383f45] border border-transparent transition-colors flex flex-col justify-between">
+              <h3 className="text-lg font-semibold text-white mb-2">{transcript.title}</h3>
+              <div className="text-[#9ea5ad] mb-4">
+                <p><span className="font-bold text-[#ced2d6]">Created:</span> {transcript.createdDate}</p>
+                <p><span className="font-bold text-[#ced2d6]">Uploaded:</span> {transcript.uploadDate}</p>
+                <p className="mt-2">{transcript.description}</p>
+              </div>
+              {transcript.filePath && (
+                <a 
+                  href={transcript.filePath} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-blue-400 hover:text-blue-300"
+                >
+                  View File
+                </a>
+              )}
+              <div className="flex justify-end space-x-4 mt-4">
+                <button 
+                  className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative"
+                  onClick={() => {
+                    setSelectedTranscript({
+                      ...transcript,
+                      lines: transcript.lines || []
+                    });
+                    setIsEditorOpen(true);
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Comment</span>
+                </button>
+                <button className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                  <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">View Summary</span>
+                </button>
+                <button 
+                  className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative"
+                  onClick={() => setIsChatbotOpen(true)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                  <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Open Chatbot</span>
+                </button>
+              </div>
             </div>
-            <div className="flex justify-end space-x-4 mt-4">
-              <button 
-                className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative"
-                onClick={() => {
-                  setSelectedTranscript({
-                    id: "1234",
-                    title: "Customer Support Call #1234",
-                    lines: [
-                      {
-                        id: "line1",
-                        speaker: { name: "Agent", isAgent: true },
-                        text: "Thank you for calling our support line. How may I assist you today?",
-                        comments: []
-                      },
-                      {
-                        id: "line2",
-                        speaker: { name: "Customer", isAgent: false },
-                        text: "Hi, I'm having trouble logging into my account. Can you help me?",
-                        comments: [
-                          {
-                            id: "comment1",
-                            text: "This is a common issue. Let's investigate further.",
-                            selection: { start: 7, end: 41 }
-                          }
-                        ]
-                      },
-                      {
-                        id: "line3",
-                        speaker: { name: "Agent", isAgent: true },
-                        text: "Of course, I'd be happy to help. Can you please provide me with your username or email address associated with the account?",
-                        comments: []
-                      },
-                      {
-                        id: "line4",
-                        speaker: { name: "Customer", isAgent: false },
-                        text: "Sure, my email is john.doe@example.com",
-                        comments: []
-                      },
-                      {
-                        id: "line5",
-                        speaker: { name: "Agent", isAgent: true },
-                        text: "Thank you. I've located your account. Let's try resetting your password. I'll send you an email with instructions. Is that okay?",
-                        comments: []
-                      },
-                      {
-                        id: "line6",
-                        speaker: { name: "Customer", isAgent: false },
-                        text: "Yes, that would be great. Thank you!",
-                        comments: []
-                      }
-                    ]
-                  });
-                  setIsEditorOpen(true);
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Edit</span>
-              </button>
-              <button className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">View Summary</span>
-              </button>
-              <button 
-                className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative"
-                onClick={() => setIsChatbotOpen(true)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Open Chatbot</span>
-              </button>
-            </div>
-          </div>
-          {/* Add more transcript cards here */}
+          ))}
         </div>
       </div>
      
@@ -134,7 +141,15 @@ export default function Home() {
       <TranscriptEditor
         isOpen={isEditorOpen}
         onClose={() => setIsEditorOpen(false)}
-        transcript={selectedTranscript}
+        transcript={selectedTranscript ? {
+          title: selectedTranscript.title,
+          lines: selectedTranscript.lines || []
+        } : null}
+      />
+      <UploadTranscriptModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onUploadSuccess={handleUploadSuccess}
       />
     </>
   );
