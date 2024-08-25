@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
+import * as fs from "fs";
 import path from 'path';
 
 export async function POST(request: Request) {
@@ -14,7 +15,14 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
+    //Check if the \public\uploads exits if it doesn't add it
     const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+
+    const uploadDirExists = await fs.promises.stat(uploadDir).catch(() => null);
+    if (!uploadDirExists) {
+      await fs.promises.mkdir(uploadDir, { recursive: true });
+    }
+
     const filename = `${Date.now()}-${file.name}`;
     const filepath = path.join(uploadDir, filename);
 
