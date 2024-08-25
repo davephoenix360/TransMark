@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface TranscriptLine {
   id: string;
@@ -7,7 +7,14 @@ interface TranscriptLine {
     isAgent: boolean;
   };
   text: string;
-  comments: string[];
+  comments: Array<{
+    id: string;
+    text: string;
+    selection?: {
+      start: number;
+      end: number;
+    };
+  }>;
 }
 
 interface TranscriptEditorProps {
@@ -22,6 +29,37 @@ interface TranscriptEditorProps {
 const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, transcript }) => {
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
+  const [selection, setSelection] = useState<{ lineId: string; start: number; end: number } | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      const selectedText = window.getSelection()?.toString();
+      if (selectedText && editorRef.current) {
+        const range = window.getSelection()?.getRangeAt(0);
+        const lineElement = range?.startContainer.parentElement?.closest('[data-line-id]');
+        if (lineElement) {
+          const lineId = lineElement.getAttribute('data-line-id');
+          const preSelectionRange = range?.cloneRange();
+          if (preSelectionRange && lineId) {
+            preSelectionRange.selectNodeContents(lineElement);
+            preSelectionRange.setEnd(range.startContainer, range.startOffset);
+            const start = preSelectionRange.toString().length;
+            setSelection({
+              lineId,
+              start,
+              end: start + selectedText.length,
+            });
+          }
+        }
+      } else {
+        setSelection(null);
+      }
+    };
+
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, []);
 
   if (!isOpen || !transcript) return null;
 
@@ -39,9 +77,10 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, tr
 
   const handleCommentSubmit = (lineId: string) => {
     // Add logic to save the comment
-    console.log('New comment for line', lineId, ':', newComment);
+    console.log('New comment for line', lineId, ':', newComment, 'Selection:', selection);
     setNewComment('');
     setActiveCommentId(null);
+    setSelection(null);
   };
 
   return (
@@ -55,9 +94,9 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, tr
             </svg>
           </button>
         </div>
-        <div className="flex-grow overflow-y-auto p-4">
+        <div className="flex-grow overflow-y-auto p-4" ref={editorRef}>
           {transcript.lines.map((line) => (
-            <div key={line.id} className="mb-6 bg-[#222530] p-4 rounded-lg">
+            <div key={line.id} className="mb-6 bg-[#222530] p-4 rounded-lg relative" data-line-id={line.id}>
               <div className="flex items-start mb-2">
                 {line.speaker.isAgent ? <AgentIcon /> : <CustomerIcon />}
                 <div className="ml-3 flex-grow">
@@ -65,17 +104,37 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, tr
                   <p className="text-gray-300 mt-1">{line.text}</p>
                 </div>
               </div>
-              <div className="mt-2 ml-11">
+              <div className="mt-2 ml-11 flex items-center">
                 <button 
-                  className="text-blue-400 hover:text-blue-300 transition-colors duration-200 text-sm"
+                  className="text-blue-400 hover:text-blue-300 transition-colors duration-200 text-sm mr-2"
                   onClick={() => setActiveCommentId(line.id)}
                 >
                   Reply
                 </button>
+                {selection && selection.lineId === line.id && (
+                  <button 
+                    className="text-blue-400 hover:text-blue-300 transition-colors duration-200 text-sm flex items-center"
+                    onClick={() => setActiveCommentId(line.id)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2zM5 7a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zm1 3a1 1 0 100 2h3a1 1 0 100-2H6z" clipRule="evenodd" />
+                    </svg>
+                    Comment on selection
+                  </button>
+                )}
               </div>
               {line.comments.map((comment, index) => (
                 <div key={index} className="ml-11 mt-2 bg-[#2a2e3b] p-3 rounded-lg">
-                  <p className="text-gray-300">{comment}</p>
+                  <p className="text-gray-300">
+                    {comment.selection ? (
+                      <>
+                        <span className="font-semibold">Selected text: </span>
+                        <span className="italic">"{line.text.slice(comment.selection.start, comment.selection.end)}"</span>
+                        <br />
+                      </>
+                    ) : null}
+                    {comment.text}
+                  </p>
                 </div>
               ))}
               {activeCommentId === line.id && (
@@ -88,12 +147,19 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ isOpen, onClose, tr
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                     ></textarea>
+                    {selection && selection.lineId === line.id && (
+                      <p className="text-gray-400 mt-2">
+                        <span className="font-semibold">Selected text: </span>
+                        <span className="italic">"{line.text.slice(selection.start, selection.end)}"</span>
+                      </p>
+                    )}
                     <div className="flex justify-end mt-3 space-x-2">
                       <button 
                         className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors duration-200 text-sm"
                         onClick={() => {
                           setActiveCommentId(null);
                           setNewComment('');
+                          setSelection(null);
                         }}
                       >
                         Cancel

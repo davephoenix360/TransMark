@@ -1,6 +1,5 @@
 'use client'
 import React, { useState } from 'react';
-import Footer from '../../../componenets/Footer';
 import Navbar from '../../../componenets/Navbar';
 import ChatbotWindow from '../../../componenets/ChatbotWindow';
 import TranscriptEditor from '../../../componenets/TranscriptEditor';
@@ -68,7 +67,13 @@ export default function Home() {
                         id: "line2",
                         speaker: { name: "Customer", isAgent: false },
                         text: "Hi, I'm having trouble logging into my account. Can you help me?",
-                        comments: ["This is a common issue. Let's investigate further."]
+                        comments: [
+                          {
+                            id: "comment1",
+                            text: "This is a common issue. Let's investigate further.",
+                            selection: { start: 7, end: 41 }
+                          }
+                        ]
                       },
                       {
                         id: "line3",
@@ -100,9 +105,9 @@ export default function Home() {
                 }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
-                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Add Comment</span>
+                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Edit</span>
               </button>
               <button className="p-2 rounded-full bg-[#fff500] hover:bg-white transition-colors duration-300 group relative">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -115,8 +120,7 @@ export default function Home() {
                 onClick={() => setIsChatbotOpen(true)}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
                 <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Open Chatbot</span>
               </button>
@@ -126,7 +130,6 @@ export default function Home() {
         </div>
       </div>
      
-      {/* Remove the Footer component if it's not defined */}
       <ChatbotWindow isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
       <TranscriptEditor
         isOpen={isEditorOpen}
