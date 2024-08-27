@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios'; // Make sure axios is imported
 
 interface TranscriptEditorProps {
   isOpen: boolean;
   onClose: () => void;
   transcript: {
-    id: string;
+    id?: string;
     title: string;
     content: string;
-  } | null;
+  };
   comments: Comment[];
   onAddComment: (comment: Comment) => void;
   onDeleteComment: (commentId: string) => void;
@@ -44,11 +45,61 @@ const CommentComponent: React.FC<{
   </div>
 );
 
+const API_URL = 'https://pde9nag7w2.execute-api.us-east-2.amazonaws.com/Dev1'; // Replace with your actual API URL
+
+const addComment = async (commentData: {
+  transcript_id: string;
+  line_id: string;
+  text: string;
+  selected_text?: string;
+  parent_comment_id?: string;
+}) => {
+  if (!commentData.transcript_id) {
+    console.error('Cannot add comment: transcript_id is missing');
+    throw new Error('transcript_id is required');
+  }
+  try {
+    console.log('Sending comment data:', commentData);
+    const response = await axios.post(`${API_URL}/comments`, commentData);
+    console.log('Server response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    if (error.response) {
+      console.error('Server error response:', error.response.data);
+    }
+    throw error;
+  }
+};
+
+const fetchComments = async (transcriptId: string | undefined) => {
+  if (!transcriptId) {
+    console.error('Transcript ID is undefined');
+    return [];
+  }
+  try {
+    const response = await axios.get(`${API_URL}/comments?transcript_id=${transcriptId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    return [];
+  }
+};
+
+const deleteComment = async (commentId: string, transcriptId: string) => {
+  try {
+    await axios.delete(`${API_URL}/comments?comment_id=${commentId}&transcript_id=${transcriptId}`);
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    throw error;
+  }
+};
+
 const TranscriptEditor: React.FC<TranscriptEditorProps> = ({ 
   isOpen, 
   onClose, 
   transcript, 
-  comments = [], // Provide a default empty array
+  comments: initialComments = [], 
   onAddComment, 
   onDeleteComment 
 }) => {
@@ -58,6 +109,22 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
   const [newComment, setNewComment] = useState('');
   const [activeCommentLineId, setActiveCommentLineId] = useState<string | null>(null);
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
+  const [comments, setComments] = useState<Comment[]>(initialComments);
+  const [transcriptId, setTranscriptId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    console.log('Transcript prop:', transcript);
+    if (transcript) {
+      const id = transcript.id || generateUniqueId(); // Use a fallback if id is not present
+      console.log('Setting transcriptId:', id);
+      setTranscriptId(id);
+      fetchComments(id).then(fetchedComments => {
+        setComments(fetchedComments);
+      });
+    } else {
+      console.log('Transcript is undefined');
+    }
+  }, [transcript]);
 
   useEffect(() => {
     if (transcript && transcript.content) {
@@ -102,20 +169,38 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
     }
   };
 
-  const handleAddComment = (lineId: string) => {
-    if (newComment.trim() !== '') {
-      const comment: Comment = {
-        id: `comment-${Date.now()}`,
+  const handleAddComment = async (lineId: string) => {
+    console.log('Current transcriptId:', transcriptId);
+    console.log('Current transcript:', transcript);
+    
+    const currentTranscriptId = transcriptId || (transcript && (transcript.id || generateUniqueId()));
+    
+    if (newComment.trim() !== '' && currentTranscriptId) {
+      const commentData = {
+        transcript_id: currentTranscriptId,
+        line_id: lineId,
         text: newComment,
-        lineId,
-        selectedText: selectedText?.lineId === lineId ? selectedText.text : undefined,
-        parentCommentId: replyingToCommentId || undefined,
+        selected_text: selectedText?.lineId === lineId ? selectedText.text : undefined,
+        parent_comment_id: replyingToCommentId || undefined,
       };
-      onAddComment(comment);
-      setNewComment('');
-      setActiveCommentLineId(null);
-      setSelectedText(null);
-      setReplyingToCommentId(null);
+      console.log('Sending comment data:', commentData);
+      try {
+        const newCommentData = await addComment(commentData);
+        console.log('New comment data:', newCommentData);
+        const newCommentWithId = { ...commentData, id: newCommentData.comment_id };
+        setComments(prevComments => [...prevComments, newCommentWithId]);
+        onAddComment(newCommentWithId);
+        setNewComment('');
+        setActiveCommentLineId(null);
+        setSelectedText(null);
+        setReplyingToCommentId(null);
+      } catch (error) {
+        console.error('Failed to add comment:', error);
+        // Handle error (e.g., show error message to user)
+      }
+    } else {
+      console.error('Cannot add comment: transcript_id is undefined');
+      // Handle error (e.g., show error message to user)
     }
   };
 
@@ -131,7 +216,17 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
     setActiveCommentLineId(comments.find(c => c.id === parentCommentId)?.lineId || null);
   };
 
-  // Add this check at the beginning of the component
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await deleteComment(commentId, transcript.id || '');
+      setComments(comments.filter(comment => comment.id !== commentId));
+      onDeleteComment(commentId);
+    } catch (error) {
+      console.error('Failed to delete comment:', error);
+      // Handle error (e.g., show error message to user)
+    }
+  };
+
   if (!isOpen || !transcript) return null;
 
   return (
@@ -220,13 +315,13 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
                   </div>
                 </div>
               )}
-              {Array.isArray(comments) && comments
+              {comments
                 .filter(comment => comment.lineId === line.id && !comment.parentCommentId)
                 .map(comment => (
                   <React.Fragment key={comment.id}>
                     <CommentComponent 
                       comment={comment} 
-                      onDelete={onDeleteComment}
+                      onDelete={handleDeleteComment}
                       onReply={handleReplyToComment}
                     />
                     {comments
@@ -235,7 +330,7 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
                         <div key={reply.id} className="ml-4 mt-2">
                           <CommentComponent 
                             comment={reply} 
-                            onDelete={onDeleteComment}
+                            onDelete={handleDeleteComment}
                             onReply={handleReplyToComment}
                           />
                         </div>
@@ -251,5 +346,10 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
     </div>
   );
 };
+
+// Helper function to generate a unique id
+function generateUniqueId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
 
 export default TranscriptEditor;
